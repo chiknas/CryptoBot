@@ -1,11 +1,16 @@
 import krakenex
 import pprint
 import time
-from ObvCalculator import ObvCalculator
+from datetime import datetime
+from ObvStrategy import ObvStrategy
 
-kraken = krakenex.API()
-kraken.load_key('kraken.key')
-obv = ObvCalculator()
+# you are not allow to buy less than that
+# current price for minimum around 9GBP
+minimumBtcVolume = 0.0002
+cryptoCode = "BTCGBP"
+# how many periods to look at for the implemented strategy. 
+# each period is 1hr.
+periods = 6
 
 # KRAKEN_DATA_LABELS
 #   a: "Ask",
@@ -16,10 +21,9 @@ obv = ObvCalculator()
 #   h: "High",
 #   o: "Today Opening Price"
 
-# you are not allow to buy less than that
-# current price for minimum around 9GBP
-minimumBtcVolume = 0.0002
-cryptoCode = "BTCGBP"
+kraken = krakenex.API()
+kraken.load_key('kraken.key')
+obv = ObvStrategy()
 
 def placeOrder(type):
     print(kraken.query_private('AddOrder', {
@@ -80,12 +84,25 @@ def serializeTickers():
         "volume": volumeValue
     }
 
+def getCurrentTime():
+    now = datetime.now()
+    return now.strftime("%m/%d/%Y, %H:%M:%S")
+
+def printLineToFile(line):
+    myFile = open("test_run.txt", "a")
+    myFile.write(line + "\n")
+    myFile.close()
+
 
 while True:
     currentTicker = getBitcoinTicker()
     tickers.append(currentTicker)
-    if len(tickers) > 10:
+    if len(tickers) > 360 * periods:
         tickers.pop(0)
+        tradeSignal = obv.whatShouldIDo(serializeTickers())
+        if tradeSignal == 1:
+            printLineToFile("BUY. time is: " + getCurrentTime())
+        elif tradeSignal == -1:
+            printLineToFile("SELL. time is: " + getCurrentTime())
 
-    pprint.pprint(obv.currentObv(serializeTickers()))
     time.sleep(10)
